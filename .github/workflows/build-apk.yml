@@ -1,0 +1,61 @@
+name: Build & Release Android APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CineRadar-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        with:
+          tag_name: v1.0.0
+          name: "CineRadar v1.0.0 APK"
+          body: |
+            ## CineRadar - Movie & Series Release Tracker & Automated Notifications
+            
+            ### 📱 Download & Install:
+            Download the `CineRadar.apk` asset below and install it directly on your Android phone!
+            
+            ### ✨ Features:
+            - **Upcoming Release Radar**: Track all major 2026/2027 movies and series releases.
+            - **Automated Push Notifications**: Automated alarm reminders before release time (1 day, 2 days, 1 week, or morning of release).
+            - **Live Countdown Clocks**: Real-time ticker for nearest premieres.
+            - **Personalized Watchlist**: Offline-first Room database tracking with custom notes and status.
+            - **One-Tap Telegram Sharing**: Formatted synopsis and release updates ready to send to Telegram channels or chats.
+          files: |
+            app/build/outputs/apk/debug/app-debug.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
