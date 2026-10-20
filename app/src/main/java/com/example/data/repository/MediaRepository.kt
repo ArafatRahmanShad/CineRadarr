@@ -56,18 +56,30 @@ class MediaRepository {
             .sorted()
     }
 
-    suspend fun fetchUpcomingFromTmdb(apiKey: String): Result<Int> = withContext(Dispatchers.IO) {
-        if (apiKey.isBlank() || apiKey == "YOUR_TMDB_API_KEY_HERE") {
-            _lastSyncStatus.value = "TMDB API Key not configured. Using verified curated catalog."
-            return@withContext Result.failure(IllegalStateException("TMDB API Key missing or placeholder"))
+    suspend fun fetchUpcomingFromTmdb(tokenOrKey: String): Result<Int> = withContext(Dispatchers.IO) {
+        val cleanKey = tokenOrKey.trim()
+        if (cleanKey.isBlank() || cleanKey == "YOUR_TMDB_API_KEY_HERE") {
+            _lastSyncStatus.value = "TMDB credentials not set. Using verified curated catalog."
+            return@withContext Result.failure(IllegalStateException("TMDB key missing"))
         }
+
+        val authHeader = if (cleanKey.startsWith("eyJ")) "Bearer $cleanKey" else null
+        val queryApiKey = if (!cleanKey.startsWith("eyJ")) cleanKey else null
 
         _isSyncing.value = true
         _lastSyncStatus.value = "Fetching live upcoming movies and series from TMDB..."
 
         try {
-            val movieResponse = TmdbNetworkClient.apiService.getUpcomingMovies(apiKey = apiKey, page = 1)
-            val tvResponse = TmdbNetworkClient.apiService.getUpcomingSeries(apiKey = apiKey, page = 1)
+            val movieResponse = TmdbNetworkClient.apiService.getUpcomingMovies(
+                authHeader = authHeader,
+                apiKey = queryApiKey,
+                page = 1
+            )
+            val tvResponse = TmdbNetworkClient.apiService.getUpcomingSeries(
+                authHeader = authHeader,
+                apiKey = queryApiKey,
+                page = 1
+            )
 
             val remoteMovies = movieResponse.results.map { TmdbNetworkClient.mapMovieToMediaItem(it) }
             val remoteTv = tvResponse.results.map { TmdbNetworkClient.mapTvToMediaItem(it) }
@@ -89,7 +101,7 @@ class MediaRepository {
             Result.success(totalFetched)
         } catch (e: Exception) {
             Log.e("MediaRepository", "Failed to fetch from TMDB", e)
-            _lastSyncStatus.value = "TMDB Sync Error: ${e.localizedMessage ?: "Network failed"}. Using offline catalog."
+            _lastSyncStatus.value = "TMDB Sync Error: ${e.localizedMessage ?: "Network error"}. Using offline catalog."
             Result.failure(e)
         } finally {
             _isSyncing.value = false

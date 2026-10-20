@@ -80,8 +80,8 @@ class CineRadarViewModel(application: Application) : AndroidViewModel(applicatio
             _armedReleasesCount.value = count
         }
 
-        val apiKey = com.example.BuildConfig.TMDB_API_KEY
-        if (apiKey.isNotBlank() && apiKey != "YOUR_TMDB_API_KEY_HERE") {
+        val apiKey = getEffectiveTmdbKey()
+        if (apiKey.isNotBlank()) {
             viewModelScope.launch {
                 mediaRepository.fetchUpcomingFromTmdb(apiKey)
             }
@@ -290,15 +290,20 @@ class CineRadarViewModel(application: Application) : AndroidViewModel(applicatio
         )
     }
 
-    fun syncTmdbLive() {
-        val apiKey = com.example.BuildConfig.TMDB_API_KEY
-        if (apiKey.isBlank() || apiKey == "YOUR_TMDB_API_KEY_HERE") {
-            _uiState.value = _uiState.value.copy(
-                testAlertSentMessage = "ℹ️ Configure TMDB_API_KEY in the Secrets panel in AI Studio to enable live TMDB API fetching!"
-            )
-            return
-        }
+    fun getEffectiveTmdbKey(): String {
+        val app = getApplication<Application>()
+        val customKey = NotificationHelper.getTmdbApiKey(app)
+        if (customKey.isNotBlank()) return customKey
 
+        val buildConfigKey = com.example.BuildConfig.TMDB_API_KEY
+        if (buildConfigKey.isNotBlank() && buildConfigKey != "YOUR_TMDB_API_KEY_HERE") {
+            return buildConfigKey
+        }
+        return NotificationHelper.DEFAULT_TMDB_KEY
+    }
+
+    fun syncTmdbLive() {
+        val apiKey = getEffectiveTmdbKey()
         viewModelScope.launch {
             val result = mediaRepository.fetchUpcomingFromTmdb(apiKey)
             result.onSuccess { count ->
@@ -315,7 +320,7 @@ class CineRadarViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             }.onFailure { err ->
                 _uiState.value = _uiState.value.copy(
-                    testAlertSentMessage = "TMDB Sync Error: ${err.message}"
+                    testAlertSentMessage = "TMDB Sync: ${err.message}"
                 )
             }
         }

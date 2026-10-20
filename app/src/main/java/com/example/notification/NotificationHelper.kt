@@ -35,6 +35,8 @@ object NotificationHelper {
     private const val PREFS_NAME = "cineradar_prefs"
     private const val KEY_GLOBAL_ALERTS_ENABLED = "key_global_alerts_enabled"
     private const val KEY_GLOBAL_REMINDER_LEAD = "key_global_reminder_lead"
+    private const val KEY_TMDB_CUSTOM_KEY = "key_tmdb_custom_key"
+    const val DEFAULT_TMDB_KEY = "e2d118be87f61f711a1f66295be7f0c2"
 
     // Lead options
     const val LEAD_2_HOURS_BEFORE = "2_HOURS"
@@ -45,6 +47,14 @@ object NotificationHelper {
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    fun getTmdbApiKey(context: Context): String {
+        return getPrefs(context).getString(KEY_TMDB_CUSTOM_KEY, DEFAULT_TMDB_KEY) ?: DEFAULT_TMDB_KEY
+    }
+
+    fun setTmdbApiKey(context: Context, key: String) {
+        getPrefs(context).edit().putString(KEY_TMDB_CUSTOM_KEY, key.trim()).apply()
     }
 
     fun isGlobalAlertsEnabled(context: Context): Boolean {
