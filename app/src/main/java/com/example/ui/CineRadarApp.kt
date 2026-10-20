@@ -103,6 +103,9 @@ fun CineRadarApp(
     val watchlistItems by viewModel.watchlistItems.collectAsState()
     val alerts by viewModel.alerts.collectAsState()
     val unreadCount by viewModel.unreadCount.collectAsState()
+    val isGlobalAlertsEnabled by viewModel.isGlobalAlertsEnabled.collectAsState()
+    val globalReminderLead by viewModel.globalReminderLead.collectAsState()
+    val armedReleasesCount by viewModel.armedReleasesCount.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -448,6 +451,12 @@ fun CineRadarApp(
                     AlertsScreen(
                         alerts = alerts,
                         unreadCount = unreadCount,
+                        isGlobalAlertsEnabled = isGlobalAlertsEnabled,
+                        globalReminderLead = globalReminderLead,
+                        armedReleasesCount = armedReleasesCount,
+                        onToggleGlobalAlerts = { viewModel.setGlobalAlerts(it) },
+                        onSetGlobalReminderLead = { viewModel.setGlobalReminderLead(it) },
+                        onArmAllReleases = { viewModel.armAllUpcomingReleasesManually() },
                         onSendTestNotification = { viewModel.sendTestAlert() },
                         onMarkAsRead = { viewModel.markAlertAsRead(it) },
                         onMarkAllAsRead = { viewModel.markAllAlertsAsRead() },

@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,28 +22,36 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DoneAll
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -51,6 +60,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -58,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.data.local.NotificationAlertEntity
+import com.example.notification.NotificationHelper
 import com.example.ui.components.PulseDot
 import com.example.ui.theme.CinemaDarkBackground
 import com.example.ui.theme.CinemaGold
@@ -78,6 +89,12 @@ import java.util.Locale
 fun AlertsScreen(
     alerts: List<NotificationAlertEntity>,
     unreadCount: Int,
+    isGlobalAlertsEnabled: Boolean,
+    globalReminderLead: String,
+    armedReleasesCount: Int,
+    onToggleGlobalAlerts: (Boolean) -> Unit,
+    onSetGlobalReminderLead: (String) -> Unit,
+    onArmAllReleases: () -> Unit,
     onSendTestNotification: () -> Unit,
     onMarkAsRead: (Long) -> Unit,
     onMarkAllAsRead: () -> Unit,
@@ -112,16 +129,17 @@ fun AlertsScreen(
             .fillMaxSize()
             .background(CinemaDarkBackground)
     ) {
-        // Notification Radar Status Card
+        // Master Push Notification Settings for ALL Upcoming Releases
         Card(
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = CinemaSurface),
-            border = androidx.compose.foundation.BorderStroke(1.dp, CinemaSurfaceBorder),
+            border = androidx.compose.foundation.BorderStroke(1.dp, NeonCyan.copy(alpha = 0.4f)),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
+                // Header with Switch
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -130,36 +148,106 @@ fun AlertsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         PulseDot()
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Release Radar Engine",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Column {
+                            Text(
+                                text = "Push Reminders (All Releases)",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Remind before release time for all movies & series",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary,
+                                fontSize = 11.sp
+                            )
+                        }
                     }
 
-                    Surface(
-                        color = CinemaGreen.copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(6.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, CinemaGreen.copy(alpha = 0.5f))
-                    ) {
-                        Text(
-                            text = "ACTIVE",
-                            color = CinemaGreen,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    Switch(
+                        checked = isGlobalAlertsEnabled,
+                        onCheckedChange = { onToggleGlobalAlerts(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = NeonCyan,
+                            checkedTrackColor = CinemaSurfaceBorder
                         )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Armed Status Tag
+                Surface(
+                    color = if (isGlobalAlertsEnabled) CinemaGreen.copy(alpha = 0.15f) else CinemaSurfaceElevated,
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (isGlobalAlertsEnabled) CinemaGreen.copy(alpha = 0.4f) else CinemaSurfaceBorder
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (isGlobalAlertsEnabled) Icons.Default.NotificationsActive else Icons.Default.Notifications,
+                                contentDescription = null,
+                                tint = if (isGlobalAlertsEnabled) CinemaGreen else TextMuted,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (isGlobalAlertsEnabled)
+                                    "Status: $armedReleasesCount upcoming releases armed with alarms"
+                                else
+                                    "Status: Push notifications paused for all releases",
+                                color = if (isGlobalAlertsEnabled) CinemaGreen else TextSecondary,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                if (isGlobalAlertsEnabled) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Remind Me Before Release:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = TextMuted
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                Text(
-                    text = "Automated release notifications trigger ahead of movie premieres and streaming series drops for every tracked item in your watchlist.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
+                    // Lead time selector
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(
+                            NotificationHelper.LEAD_2_HOURS_BEFORE to "2 Hours Before",
+                            NotificationHelper.LEAD_1_DAY_BEFORE to "1 Day Before",
+                            NotificationHelper.LEAD_2_DAYS_BEFORE to "2 Days Before",
+                            NotificationHelper.LEAD_1_WEEK_BEFORE to "1 Week Before",
+                            NotificationHelper.LEAD_RELEASE_MORNING to "On Release Morning"
+                        ).forEach { (leadKey, label) ->
+                            FilterChip(
+                                selected = globalReminderLead == leadKey,
+                                onClick = { onSetGlobalReminderLead(leadKey) },
+                                label = { Text(label, fontSize = 11.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = CinemaGold.copy(alpha = 0.25f),
+                                    selectedLabelColor = CinemaGold,
+                                    containerColor = CinemaSurfaceElevated
+                                )
+                            )
+                        }
+                    }
+                }
 
                 // Android 13+ Permission banner if needed
                 if (!hasNotificationPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -176,13 +264,13 @@ fun AlertsScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Permission Needed",
+                                    text = "System Permission Needed",
                                     color = HotCoral,
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "Enable notifications to receive system alert banners.",
+                                    text = "Enable notification permission to show status bar alerts.",
                                     color = TextSecondary,
                                     style = MaterialTheme.typography.bodySmall
                                 )
@@ -202,23 +290,85 @@ fun AlertsScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Instant Test Notification Trigger Button
-                Button(
-                    onClick = onSendTestNotification,
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                // Action buttons: Arm All + Test Notification
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.NotificationsActive,
-                        contentDescription = null,
-                        tint = CinemaDarkBackground
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    OutlinedButton(
+                        onClick = onArmAllReleases,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonCyan),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, NeonCyan.copy(alpha = 0.6f)),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(imageVector = Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Re-Arm All", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    Button(
+                        onClick = onSendTestNotification,
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(imageVector = Icons.Default.NotificationsActive, contentDescription = null, tint = CinemaDarkBackground, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Test Alert", color = CinemaDarkBackground, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // APK Download & Location Information Card
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = CinemaSurfaceElevated),
+            border = androidx.compose.foundation.BorderStroke(1.dp, CinemaSurfaceBorder),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    color = NeonCyan.copy(alpha = 0.15f),
+                    shape = CircleShape,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Android,
+                            contentDescription = "APK",
+                            tint = NeonCyan,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Test Release Alert Now",
-                        color = CinemaDarkBackground,
+                        text = "APK Generated & Ready",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = TextPrimary,
                         fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "app/build/outputs/apk/debug/app-debug.apk",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = CinemaGold,
+                        fontSize = 11.sp
+                    )
+                    Text(
+                        text = "Export via Settings > Download APK or from file explorer.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextMuted,
+                        fontSize = 10.sp
                     )
                 }
             }
@@ -228,12 +378,12 @@ fun AlertsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Alerts Log (${alerts.size})",
+                text = "Alerts History (${alerts.size})",
                 style = MaterialTheme.typography.titleMedium,
                 color = TextPrimary,
                 fontWeight = FontWeight.Bold
@@ -267,7 +417,7 @@ fun AlertsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(32.dp),
+                    .padding(24.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -275,18 +425,18 @@ fun AlertsScreen(
                         imageVector = Icons.Default.Notifications,
                         contentDescription = null,
                         tint = TextMuted,
-                        modifier = Modifier.size(56.dp)
+                        modifier = Modifier.size(48.dp)
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "No Alerts Yet",
+                        text = "All Upcoming Reminders Armed",
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Tap 'Test Release Alert Now' above to simulate a live notification or add upcoming titles to your watchlist.",
+                        text = "Push notification alarms are scheduled for all upcoming movies & series. When the release time approaches, your phone will alert you.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary,
                         textAlign = TextAlign.Center

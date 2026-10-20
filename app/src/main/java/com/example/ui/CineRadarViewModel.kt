@@ -12,6 +12,7 @@ import com.example.data.model.WatchlistStatus
 import com.example.data.repository.MediaCatalog
 import com.example.data.repository.MediaRepository
 import com.example.data.repository.WatchlistRepository
+import com.example.notification.NotificationHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -58,6 +59,27 @@ class CineRadarViewModel(application: Application) : AndroidViewModel(applicatio
 
     val unreadCount: StateFlow<Int> = watchlistRepository.unreadAlertCount
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    private val _isGlobalAlertsEnabled = MutableStateFlow(NotificationHelper.isGlobalAlertsEnabled(application))
+    val isGlobalAlertsEnabled: StateFlow<Boolean> = _isGlobalAlertsEnabled.asStateFlow()
+
+    private val _globalReminderLead = MutableStateFlow(NotificationHelper.getGlobalReminderLead(application))
+    val globalReminderLead: StateFlow<String> = _globalReminderLead.asStateFlow()
+
+    private val _armedReleasesCount = MutableStateFlow(0)
+    val armedReleasesCount: StateFlow<Int> = _armedReleasesCount.asStateFlow()
+
+    init {
+        // Automatically ensure all upcoming movie & series releases have push notifications armed
+        if (_isGlobalAlertsEnabled.value) {
+            val count = NotificationHelper.scheduleAllUpcomingReleases(
+                application,
+                MediaCatalog.items,
+                _globalReminderLead.value
+            )
+            _armedReleasesCount.value = count
+        }
+    }
 
     val genres: List<String> = mediaRepository.getAllGenres()
     val platforms: List<String> = mediaRepository.getAllPlatforms()
@@ -210,5 +232,48 @@ class CineRadarViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun getWatchlistEntity(mediaId: String): WatchlistEntity? {
         return watchlistItems.value.find { it.mediaId == mediaId }
+    }
+
+    fun setGlobalAlerts(enabled: Boolean) {
+        val app = getApplication<Application>()
+        NotificationHelper.setGlobalAlertsEnabled(app, enabled)
+        _isGlobalAlertsEnabled.value = enabled
+        if (enabled) {
+            val count = NotificationHelper.scheduleAllUpcomingReleases(app, MediaCatalog.items, _globalReminderLead.value)
+            _armedReleasesCount.value = count
+            _uiState.value = _uiState.value.copy(
+                testAlertSentMessage = "Push notifications active for all upcoming movies & series! ($count armed)"
+            )
+        } else {
+            NotificationHelper.cancelAllGlobalReminders(app, MediaCatalog.items)
+            _armedReleasesCount.value = 0
+            _uiState.value = _uiState.value.copy(
+                testAlertSentMessage = "Global release push reminders disabled"
+            )
+        }
+    }
+
+    fun setGlobalReminderLead(lead: String) {
+        val app = getApplication<Application>()
+        NotificationHelper.setGlobalReminderLead(app, lead)
+        _globalReminderLead.value = lead
+        if (_isGlobalAlertsEnabled.value) {
+            val count = NotificationHelper.scheduleAllUpcomingReleases(app, MediaCatalog.items, lead)
+            _armedReleasesCount.value = count
+            val leadLabel = NotificationHelper.getLeadLabel(lead)
+            _uiState.value = _uiState.value.copy(
+                testAlertSentMessage = "Release reminders updated: $leadLabel ($count armed)"
+            )
+        }
+    }
+
+    fun armAllUpcomingReleasesManually() {
+        val app = getApplication<Application>()
+        setGlobalAlerts(true)
+        val count = NotificationHelper.scheduleAllUpcomingReleases(app, MediaCatalog.items, _globalReminderLead.value)
+        _armedReleasesCount.value = count
+        _uiState.value = _uiState.value.copy(
+            testAlertSentMessage = "Armed push reminders for $count upcoming movies & series before release time!"
+        )
     }
 }
