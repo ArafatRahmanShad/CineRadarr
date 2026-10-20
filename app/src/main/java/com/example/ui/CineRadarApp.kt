@@ -106,6 +106,7 @@ fun CineRadarApp(
     val isGlobalAlertsEnabled by viewModel.isGlobalAlertsEnabled.collectAsState()
     val globalReminderLead by viewModel.globalReminderLead.collectAsState()
     val armedReleasesCount by viewModel.armedReleasesCount.collectAsState()
+    val isTmdbSyncing by viewModel.isTmdbSyncing.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -388,6 +389,8 @@ fun CineRadarApp(
                         selectedStatus = uiState.selectedStatus,
                         genres = viewModel.genres,
                         isMediaInWatchlist = { viewModel.isMediaInWatchlist(it) },
+                        isTmdbSyncing = isTmdbSyncing,
+                        onSyncTmdb = { viewModel.syncTmdbLive() },
                         onSelectType = { viewModel.setTypeFilter(it) },
                         onSelectGenre = { viewModel.setGenreFilter(it) },
                         onSelectStatus = { viewModel.setStatusFilter(it) },

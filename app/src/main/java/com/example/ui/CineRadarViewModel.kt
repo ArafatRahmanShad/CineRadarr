@@ -79,7 +79,20 @@ class CineRadarViewModel(application: Application) : AndroidViewModel(applicatio
             )
             _armedReleasesCount.value = count
         }
+
+        val apiKey = com.example.BuildConfig.TMDB_API_KEY
+        if (apiKey.isNotBlank() && apiKey != "YOUR_TMDB_API_KEY_HERE") {
+            viewModelScope.launch {
+                mediaRepository.fetchUpcomingFromTmdb(apiKey)
+            }
+        }
     }
+
+    val isTmdbSyncing: StateFlow<Boolean> = mediaRepository.isSyncing
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val tmdbSyncStatus: StateFlow<String?> = mediaRepository.lastSyncStatus
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val genres: List<String> = mediaRepository.getAllGenres()
     val platforms: List<String> = mediaRepository.getAllPlatforms()
@@ -275,5 +288,36 @@ class CineRadarViewModel(application: Application) : AndroidViewModel(applicatio
         _uiState.value = _uiState.value.copy(
             testAlertSentMessage = "Armed push reminders for $count upcoming movies & series before release time!"
         )
+    }
+
+    fun syncTmdbLive() {
+        val apiKey = com.example.BuildConfig.TMDB_API_KEY
+        if (apiKey.isBlank() || apiKey == "YOUR_TMDB_API_KEY_HERE") {
+            _uiState.value = _uiState.value.copy(
+                testAlertSentMessage = "ℹ️ Configure TMDB_API_KEY in the Secrets panel in AI Studio to enable live TMDB API fetching!"
+            )
+            return
+        }
+
+        viewModelScope.launch {
+            val result = mediaRepository.fetchUpcomingFromTmdb(apiKey)
+            result.onSuccess { count ->
+                _uiState.value = _uiState.value.copy(
+                    testAlertSentMessage = "🎬 Live TMDB Sync complete! $count upcoming releases updated."
+                )
+                if (_isGlobalAlertsEnabled.value) {
+                    val armed = NotificationHelper.scheduleAllUpcomingReleases(
+                        getApplication(),
+                        allMedia.value,
+                        _globalReminderLead.value
+                    )
+                    _armedReleasesCount.value = armed
+                }
+            }.onFailure { err ->
+                _uiState.value = _uiState.value.copy(
+                    testAlertSentMessage = "TMDB Sync Error: ${err.message}"
+                )
+            }
+        }
     }
 }

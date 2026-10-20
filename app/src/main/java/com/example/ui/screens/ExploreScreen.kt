@@ -20,12 +20,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -68,6 +73,8 @@ fun ExploreScreen(
     selectedStatus: ReleaseStatus?,
     genres: List<String>,
     isMediaInWatchlist: (String) -> Boolean,
+    isTmdbSyncing: Boolean = false,
+    onSyncTmdb: () -> Unit = {},
     onSelectType: (MediaType?) -> Unit,
     onSelectGenre: (String?) -> Unit,
     onSelectStatus: (ReleaseStatus?) -> Unit,
@@ -90,6 +97,80 @@ fun ExploreScreen(
                         media = spotlightMedia,
                         onViewDetail = { onMediaClick(spotlightMedia) }
                     )
+                }
+            }
+        }
+
+        // TMDB Live Sync Bar
+        item {
+            Surface(
+                color = CinemaSurfaceElevated,
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, CinemaSurfaceBorder),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Surface(
+                            color = NeonCyan.copy(alpha = 0.2f),
+                            shape = CircleShape,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("TMDB", fontSize = 7.sp, fontWeight = FontWeight.Bold, color = NeonCyan)
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Live TMDB Movie Sync",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Fetch upcoming movies & TV series via Retrofit",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextMuted,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = onSyncTmdb,
+                        enabled = !isTmdbSyncing,
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        if (isTmdbSyncing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                color = CinemaDarkBackground,
+                                strokeWidth = 1.5.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Sync,
+                                contentDescription = "Sync",
+                                tint = CinemaDarkBackground,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Sync", color = CinemaDarkBackground, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }
