@@ -26,14 +26,28 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Restore Keystore and Environment
+        run: |
+          if [ -f "debug.keystore.base64" ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+          else
+            keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keypass android -storepass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          if [ ! -f ".env" ] && [ -f ".env.example" ]; then
+            cp .env.example .env
+          fi
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon
+
+      - name: Prepare Release Asset
+        run: cp app/build/outputs/apk/debug/app-debug.apk CineRadar.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: CineRadar-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: CineRadar.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -45,16 +59,17 @@ jobs:
             ## CineRadar - Movie & Series Release Tracker & Automated Notifications
             
             ### 📱 Download & Install:
-            Download the `CineRadar.apk` asset below and install it directly on your Android phone!
+            Download **`CineRadar.apk`** below directly to your phone and install!
             
             ### ✨ Features:
-            - **Upcoming Release Radar**: Track all major 2026/2027 movies and series releases.
-            - **Automated Push Notifications**: Automated alarm reminders before release time (1 day, 2 days, 1 week, or morning of release).
+            - **Upcoming Release Radar**: Track all major 2026/2027 movies and TV series.
+            - **Automated Push Notifications**: Automated alarm reminders before release time (2h, 1 day, 2 days, 1 week, or release morning).
             - **Live Countdown Clocks**: Real-time ticker for nearest premieres.
             - **Personalized Watchlist**: Offline-first Room database tracking with custom notes and status.
             - **One-Tap Telegram Sharing**: Formatted synopsis and release updates ready to send to Telegram channels or chats.
+            - **Live TMDB Integration**: Live sync via Retrofit service for upcoming movies and series.
           files: |
-            app/build/outputs/apk/debug/app-debug.apk
+            CineRadar.apk
           draft: false
           prerelease: false
         env:
