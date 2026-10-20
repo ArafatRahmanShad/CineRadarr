@@ -1,0 +1,6 @@
+{
+  "name": "CineRadar",
+  "description": "Instant updates on upcoming movies & series, live release countdowns, personalized watchlist, and automated release alerts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
