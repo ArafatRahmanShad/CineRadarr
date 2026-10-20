@@ -1,9 +1,7 @@
 package com.example.data.remote
 
 import com.squareup.moshi.Json
-import com.squareup.moshi.JsonClass
 
-@JsonClass(generateAdapter = true)
 data class TmdbPaginatedResponse<T>(
     @Json(name = "page") val page: Int = 1,
     @Json(name = "results") val results: List<T> = emptyList(),
@@ -11,7 +9,6 @@ data class TmdbPaginatedResponse<T>(
     @Json(name = "total_results") val totalResults: Int = 0
 )
 
-@JsonClass(generateAdapter = true)
 data class TmdbMovieDto(
     @Json(name = "id") val id: Int,
     @Json(name = "title") val title: String,
@@ -25,7 +22,6 @@ data class TmdbMovieDto(
     @Json(name = "popularity") val popularity: Double? = 0.0
 )
 
-@JsonClass(generateAdapter = true)
 data class TmdbTvDto(
     @Json(name = "id") val id: Int,
     @Json(name = "name") val name: String,
